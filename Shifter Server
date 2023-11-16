@@ -1,0 +1,251 @@
+local RS = game:GetService("ReplicatedStorage")
+local Assets = RS:WaitForChild("Assets")
+local Animations = Assets:WaitForChild("Animations")
+local Remotes = Assets:WaitForChild("Remotes")
+local Modules = Assets:WaitForChild("Modules")
+local Models = Assets:WaitForChild("Models")
+
+local SS = game:GetService("ServerStorage")
+local SSAssets = SS:WaitForChild("Assets")
+
+local Frameworks = Modules:WaitForChild("Frameworks") -- Folder with some Frameworks
+local Clothes = require(Frameworks:WaitForChild("Clothes")) -- Module called Clothes
+
+local Library = require(Modules:WaitForChild("Library")) -- Library of my game
+
+Remotes.Menu.OnServerEvent:Connect(function(plr, action) -- Menu Book System
+	local char = plr.Character
+	if action == "Equip" then -- Detects if the action is "Equip"
+		if not char:HasTag("ShifterModel") then --Detects if the character does not have a tag called "ShifterModel"
+			local BookAndPen = SSAssets:WaitForChild("Models"):WaitForChild("Welds"):WaitForChild("BookAndPen"):Clone() -- Clone BookAndPen model
+			BookAndPen.Parent = char -- New Parent of the CLONE
+			local m6dPen = Instance.new("Motor6D", BookAndPen:WaitForChild("Pen"):WaitForChild("Handle")) -- Create a Motor6D for Pen
+			m6dPen.Part0 = char:WaitForChild("Right Arm") -- Set the Part0 of Motor6D
+			m6dPen.Part1 = BookAndPen:WaitForChild("Pen"):WaitForChild("Handle") -- Set the Part1 of Motor6D
+			m6dPen.C0 = CFrame.new(-0.008, -1, -0.471) * CFrame.Angles(math.rad(90), math.rad(0), math.rad(0)) -- Applying the CFrame for Pen
+			local m6dBook = Instance.new("Motor6D", BookAndPen:WaitForChild("Book")) -- Create a Motor6D for Book
+			m6dBook.Part0 = char:WaitForChild("Left Arm") -- Set the Part0 of Motor6D
+			m6dBook.Part1 = BookAndPen:WaitForChild("Book") -- Set the Part0 of Motor6D
+			m6dBook.C0 = CFrame.new(0, -1.4, 0) * CFrame.fromOrientation(math.rad(-90), math.rad(-90), 0) -- Applying the CFrame for Book
+
+			local hm = char:WaitForChild("Humanoid")
+			local anim = hm:LoadAnimation(Animations:WaitForChild("Backpack"):WaitForChild("Equip"))
+			anim:Play() --Playing Animation
+			anim:GetMarkerReachedSignal("End"):Connect(function() -- Detects when the animation fired the "End" event
+				Remotes.Menu:FireClient(plr, "Equip")
+			end)
+		end
+	elseif action == "UnEquip" then --Detects if the action is "UnEquip"
+		local hm = char:WaitForChild("Humanoid")
+		local anim = hm:LoadAnimation(Animations:WaitForChild("Backpack"):WaitForChild("UnEquip"))
+		anim:Play()
+		anim:GetMarkerReachedSignal("End"):Connect(function() -- Detects when the animation fired the "End" event
+			Remotes.Menu:FireClient(plr, "UnEquip")
+			char:WaitForChild("BookAndPen"):Destroy()
+		end)
+	end
+end)
+
+Remotes.Backpack.OnServerEvent:Connect(function(plr, action)-- Backpack Accessory System
+	local char = plr.Character
+	if action == "PutOnChar" then -- Detects if the action is "PutOnChar" or when character active the tool
+		local backpackModel = SSAssets:WaitForChild("Models"):WaitForChild("Welds"):WaitForChild("Backpack"):Clone() -- Clone the model from "Welds" folder
+		backpackModel.Parent = char -- Put on character
+		local m6d = Instance.new("Motor6D", backpackModel:WaitForChild("Handle")) -- Create Motor6D
+		m6d.Part0 = char:WaitForChild("Torso")
+		m6d.Part1 = backpackModel:WaitForChild("Handle")
+		m6d.C0 = CFrame.new(0, 0, 0.8) --Aplying the CFrame for Handle
+	elseif action == "Equip" then -- Detect if the player open backpack
+		local hm = char:WaitForChild("Humanoid")
+		local anim = hm:LoadAnimation(Animations:WaitForChild("Backpack"):WaitForChild("Equip"))
+		anim:Play()
+		anim:GetMarkerReachedSignal("End"):Connect(function() -- When the animation fired "End" event
+			Remotes.Backpack:FireClient(plr, "Equip")
+			local new = Instance.new("BoolValue", char)
+			new.Name = "BackpackOpen" -- Create a value so that the rest of the scripts know in the backpack it was opened.
+		end)
+	elseif action == "UnEquip" then -- Detect if the player close backpack
+		local hm = char:WaitForChild("Humanoid")
+		local anim = hm:LoadAnimation(Animations:WaitForChild("Backpack"):WaitForChild("UnEquip"))
+		anim:Play()
+		anim:GetMarkerReachedSignal("End"):Connect(function() -- When the animation fired "End" event
+			Remotes.Backpack:FireClient(plr, "UnEquip")
+			char:WaitForChild("BackpackOpen"):Destroy() --Delete the Value
+		end)
+	end
+end)
+
+Remotes.Settings.OnServerEvent:Connect(function(plr, setting, mode) -- Change Settings 
+	local stats = RS:WaitForChild("stats"):FindFirstChild(plr.Name)
+	for _, values in pairs(stats:GetChildren()) do -- Detect the values from stats folder
+		if values.Name == setting then -- Detect if the values name is the same from "setting"
+			values.Value = mode -- If the name is the same, changes the value
+		end
+	end
+end)
+
+Remotes.outfit.OnServerEvent:Connect(function(plr, outfitname) -- Change outfit
+	local char = plr.Character 
+	local stats = RS:WaitForChild("stats"):FindFirstChild(plr.Name)
+	Clothes.ChangeClothes(plr, outfitname) -- This Module changes the outfit, Basically and in summary it works like this; The "ChangeClothes" function detects if the string that comes with the event is equal to the name of the outfit that is in a table with the IDs of the shirt and pants, and then changes the character values ​​to these new ones
+end)
+
+--// Editor Character
+local EditorFolder = Assets:WaitForChild("Editor")
+
+EditorFolder.Remotes.Changes.OnServerEvent:Connect(function(plr, type, name) --Detect the changes from the customizer character
+	local char = plr.Character
+	local stats = RS:WaitForChild("stats"):FindFirstChild(plr.Name) -- stats folder
+	if type == "Eyes" then -- If the change is the Eyes
+		for _, v in pairs(EditorFolder:WaitForChild("Eyes"):GetChildren()) do --Search from folder the decal
+			if v:IsA("Decal") then -- If "v" is a decal
+				if v.Name == name then -- If the decal have the same name with "name"
+					char:WaitForChild("fake"):WaitForChild("eyes").Texture = v.Texture -- If the same name, the texture changes to the new one
+					stats.TypeEye.Value = v.Name -- Change the "TypeEye" value from the decal name
+				end
+			end
+		end
+	elseif type == "Mouth" then -- Same procedure as for the eyes
+		for _, v in pairs(EditorFolder:WaitForChild("Mouth"):GetChildren()) do
+			if v:IsA("Decal") then
+				if v.Name == name then
+					char:WaitForChild("fake"):WaitForChild("mouth").Texture = v.Texture
+					stats.TypeMouth.Value = v.Name
+				end
+			end
+		end
+	elseif type == "Eyebrow" then -- Same procedure as for the eyes
+		for _, v in pairs(EditorFolder:WaitForChild("Eyebrows"):GetChildren()) do
+			if v:IsA("Decal") then
+				if v.Name == name then
+					char:WaitForChild("fake"):WaitForChild("eyebrows").Texture = v.Texture
+					stats.TypeEyebrow.Value = v.Name
+				end
+			end
+		end
+	elseif type == "Pupils" then -- Same procedure as for the eyes
+		for _, v in pairs(EditorFolder:WaitForChild("Pupils"):GetChildren()) do
+			if v:IsA("Decal") then
+				if v.Name == name then
+					char:WaitForChild("fake"):WaitForChild("pupils").Texture = v.Texture
+					stats.TypePupila.Value = v.Name
+				end
+			end
+		end
+	elseif type == "Extra" then -- Same procedure as for the eyes
+		for _, v in pairs(EditorFolder:WaitForChild("Extras"):GetChildren()) do
+			if v:IsA("Decal") then
+				if v.Name == name then
+					char:WaitForChild("fake"):WaitForChild("extra").Texture = v.Texture
+					stats.TypeExtra.Value = v.Name
+				end
+			end
+		end
+	elseif type == "Hair1" or type == "Hair2" then -- If the change hair is one or two
+		for _, PelosInFolder in pairs(EditorFolder:WaitForChild("Pelos"):GetChildren()) do --Search from folder the Accessory
+			if PelosInFolder:IsA("Accessory") then --If "PelosInFolder" is a Accessory
+				if PelosInFolder.Name == name then -- If the accessory have the same name with "name" 
+					for _, PelosInChar in pairs(char:GetChildren()) do -- Detects the hairs in character
+						if PelosInChar:IsA("Accessory") then
+							if PelosInChar:GetAttribute(type) == true then -- detects if the hairs on the character are of the same type and this is true called from the event
+								PelosInChar:Destroy() -- If this is correct, delete the old hair
+							end
+							local newPelo = PelosInFolder:Clone() -- Clone the new hair
+							newPelo.Parent = char -- Puts this in character
+							newPelo:SetAttribute(type, true) --Set an attribute with the new hair type and enable its
+							if type == "Hair1" then -- Detects the type of hair
+								stats.Hair1.Value = name -- Change de Hair1 Value to the new one
+							elseif type == "Hair2" then
+								stats.Hair2.Value = name -- Change de Hair2 Value to the new one
+							end
+						end
+					end
+				end
+			end
+		end
+	elseif type == "Barba" then-- Detects if the change is a beard
+		for _, PelosInFolder in pairs(EditorFolder:WaitForChild("Barbas"):GetChildren()) do -- The same procedure as that of the hairs
+			if PelosInFolder:IsA("Accessory") then
+				if PelosInFolder.Name == name then
+					for _, PelosInChar in pairs(char:GetChildren()) do
+						if PelosInChar:IsA("Accessory") then
+							if PelosInChar:GetAttribute(type) == true then
+								PelosInChar:Destroy()
+							end
+							local newPelo = PelosInFolder:Clone()
+							newPelo.Parent = char
+							newPelo:SetAttribute(type, true)
+							stats.Beard.Value = name
+						end
+					end
+				end
+			end
+		end
+	elseif type == "Gender" then -- Detects if the change is a Gender
+		stats.Gender.Value = type -- Set the new Value with the new gender
+		if name == "Man" then -- If the name of gender is "Man"
+			if char:FindFirstChild("Mujer") then -- Search a CharacterMesh called "Mujer" into a Character
+				char:FindFirstChild("Mujer"):Destroy() -- If not nil, destroy this
+			end
+		elseif name ==  "Fem" then -- Same procedure as for the "Man"
+			if not char:FindFirstChild("Mujer") then -- Search a CharacterMesh called "Mujer" into a Character
+				Models:WaitForChild("Mujer"):Clone().Parent = char -- If is nil, clone from folder and puts into character
+			end
+			for _, PelosInChar in pairs(char:GetChildren()) do -- Detects if the character has a Beard
+				if PelosInChar:IsA("Accessory") then
+					if PelosInChar:GetAttribute("Barba") == true then -- Detects if the accessory found is a Beard
+						PelosInChar:Destroy() -- if is correct, destroy it
+					end
+				end
+			end
+		end
+	elseif type == "SkinTone" then -- Detects if the change is the Skin Tone or Body Colors
+		for skintones, colors in pairs(Library.Skins_Colors) do -- Table for skin tones
+			if skintones == name then -- If the skin tone name is the same as the "name" called from the event
+				local bodyColors = char:WaitForChild("Body Colors") --Change the properties of the character's body colors
+				bodyColors.HeadColor3 = colors
+				bodyColors.TorsoColor3 = colors
+				bodyColors.LeftArmColor3 = colors
+				bodyColors.RightArmColor3 = colors
+				bodyColors.LeftLegColor3 = colors
+				bodyColors.RightLegColor3 = colors
+				stats.SkinTone.Value = skintones
+			end
+		end
+	elseif type == "Nombre" then -- Detects if the change is the name and changes it
+		stats.RPName.Value = name
+	elseif type == "LastName" then -- Detects if the change is the last name and changes it
+		stats.LastName.Value = name
+	elseif type == "Start" then -- Detects if the player is ready with his character
+		stats.newPlayer.Value = false
+		wait(0.5)
+		plr:Kick("Vuelve a unirte para comenzar tu vida lore.")
+	end
+end)
+
+EditorFolder.Remotes.UpdateHairColor.OnServerEvent:Connect(function(plr, color) --Update hair colors
+	local char = plr.Character
+	local stats = RS:WaitForChild("stats"):FindFirstChild(plr.Name)
+	local r,g,b = math.floor((color.R*255)+0.5),math.floor((color.G*255)+0.5),math.floor((color.B*255)+0.5) -- Transform the HSV colors to RGB colors
+	stats.ColorHairR.Value = tostring(r) -- Change the value to the new one
+	stats.ColorHairG.Value = tostring(g) -- Change the value to the new one.
+	stats.ColorHairB.Value = tostring(b) -- Change the value to the new one.
+	for _, updateColors in pairs(char:GetChildren()) do -- Look for the character's accessories.
+		if updateColors:IsA("Accessory") then
+			if updateColors:GetAttribute("Hair1") == true or updateColors:GetAttribute("Hair2") == true or updateColors:GetAttribute("Barba") == true then -- If the accessories is Hair1, Hair2 or Beard
+				local color2 = Color3.fromRGB(r, g, b) -- New color
+				updateColors.Handle.Color = color2 -- Changes the color
+			end
+		end
+	end
+end)
+EditorFolder.Remotes.UpdateEyeColor.OnServerEvent:Connect(function(plr, color) --Update Eye colors
+	local char = plr.Character
+	local stats = RS:WaitForChild("stats"):FindFirstChild(plr.Name)
+	local r,g,b = math.floor((color.R*255)+0.5),math.floor((color.G*255)+0.5),math.floor((color.B*255)+0.5) -- Transform the HSV colors to RGB colors
+	stats.EyeColorR.Value = tostring(r)-- Change the value to the new one
+	stats.EyeColorG.Value = tostring(g)-- Change the value to the new one
+	stats.EyeColorB.Value = tostring(b)-- Change the value to the new one
+	local color2 = Color3.fromRGB(r, g, b)-- New color
+	char:WaitForChild("fake"):WaitForChild("pupils").Color3 = color2-- Changes the color for pupils to the new one
+end)
